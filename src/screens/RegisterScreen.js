@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     StyleSheet,
     Text,
@@ -8,15 +8,72 @@ import {
     Alert,
     KeyboardAvoidingView,
     Platform,
-    ScrollView
+    ScrollView,
+    ActivityIndicator
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const RegisterScreen = ({ navigation }) => {
+const RegisterScreen = ({ navigation, route }) => {
     const [name, setName] = useState('');
     const [age, setAge] = useState('');
     const [weight, setWeight] = useState('');
     const [height, setHeight] = useState('');
+    const [loading, setLoading] = useState(true);
+    const [isUpdate, setIsUpdate] = useState(false);
+
+    useEffect(() => {
+        loadLatestRecord();
+
+        // Adicionar listener para quando a tela entrar em foco
+        const unsubscribe = navigation.addListener('focus', () => {
+            loadLatestRecord();
+        });
+
+        // Limpar listener
+        return unsubscribe;
+    }, [navigation]);
+
+    const loadLatestRecord = async () => {
+        setLoading(true);
+        try {
+            const recordsJSON = await AsyncStorage.getItem('userRecords');
+            if (recordsJSON) {
+                const records = JSON.parse(recordsJSON);
+                if (records.length > 0) {
+                    // Ordenar por data e obter o registro mais recente
+                    const sortedRecords = records.sort((a, b) =>
+                        new Date(b.date) - new Date(a.date)
+                    );
+                    const latestRecord = sortedRecords[0];
+
+                    // Preencher os campos com os dados mais recentes
+                    setName(latestRecord.name || '');
+                    setAge(latestRecord.age?.toString() || '');
+                    setWeight(latestRecord.weight?.toString() || '');
+                    setHeight(latestRecord.height?.toString() || '');
+                    setIsUpdate(true);
+                } else {
+                    clearForm();
+                }
+            } else {
+                clearForm();
+            }
+        } catch (error) {
+            console.error('Erro ao carregar dados:', error);
+            Alert.alert('Erro', 'Falha ao carregar os dados existentes.');
+            clearForm();
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const clearForm = () => {
+        setName('');
+        setAge('');
+        setWeight('');
+        setHeight('');
+        setIsUpdate(false);
+    };
 
     const saveData = async () => {
         // Validate inputs
@@ -51,15 +108,13 @@ const RegisterScreen = ({ navigation }) => {
             // Save records
             await AsyncStorage.setItem('userRecords', JSON.stringify(records));
 
-            Alert.alert('Sucesso', 'Dados salvos com sucesso!', [
+            const message = isUpdate ? 'Dados atualizados com sucesso!' : 'Dados salvos com sucesso!';
+            Alert.alert('Sucesso', message, [
                 { text: 'OK', onPress: () => navigation.navigate('Home') }
             ]);
 
             // Clear form
-            setName('');
-            setAge('');
-            setWeight('');
-            setHeight('');
+            clearForm();
         } catch (error) {
             Alert.alert('Erro', 'Falha ao salvar os dados: ' + error.message);
         }
@@ -71,54 +126,79 @@ const RegisterScreen = ({ navigation }) => {
             style={styles.container}
         >
             <ScrollView contentContainerStyle={styles.scrollContainer}>
-                <Text style={styles.title}>Cadastro do Bebê</Text>
+                <Text style={styles.title}>{isUpdate ? 'Atualizar Dados do Bebê' : 'Cadastro do Bebê'}</Text>
 
-                <View style={styles.inputContainer}>
-                    <Text style={styles.label}>Nome do Bebê</Text>
-                    <TextInput
-                        style={styles.input}
-                        placeholder="Digite o nome do bebê"
-                        value={name}
-                        onChangeText={setName}
-                    />
-                </View>
+                {loading ? (
+                    <View style={styles.loadingContainer}>
+                        <ActivityIndicator size="large" color="#4CAF50" />
+                        <Text style={styles.loadingText}>Carregando dados...</Text>
+                    </View>
+                ) : (
+                    <>
+                        <View style={styles.inputContainer}>
+                            <Text style={styles.label}>Nome do Bebê</Text>
+                            <TextInput
+                                style={styles.input}
+                                placeholder="Digite o nome do bebê"
+                                value={name}
+                                onChangeText={setName}
+                            />
+                        </View>
 
-                <View style={styles.inputContainer}>
-                    <Text style={styles.label}>Idade (meses)</Text>
-                    <TextInput
-                        style={styles.input}
-                        placeholder="Digite a idade em meses"
-                        value={age}
-                        onChangeText={setAge}
-                        keyboardType="numeric"
-                    />
-                </View>
+                        <View style={styles.inputContainer}>
+                            <Text style={styles.label}>Idade (meses)</Text>
+                            <TextInput
+                                style={styles.input}
+                                placeholder="Digite a idade em meses"
+                                value={age}
+                                onChangeText={setAge}
+                                keyboardType="numeric"
+                            />
+                        </View>
 
-                <View style={styles.inputContainer}>
-                    <Text style={styles.label}>Peso (kg)</Text>
-                    <TextInput
-                        style={styles.input}
-                        placeholder="Digite o peso do bebê"
-                        value={weight}
-                        onChangeText={setWeight}
-                        keyboardType="numeric"
-                    />
-                </View>
+                        <View style={styles.inputContainer}>
+                            <Text style={styles.label}>Peso (kg)</Text>
+                            <TextInput
+                                style={styles.input}
+                                placeholder="Digite o peso do bebê"
+                                value={weight}
+                                onChangeText={setWeight}
+                                keyboardType="numeric"
+                            />
+                        </View>
 
-                <View style={styles.inputContainer}>
-                    <Text style={styles.label}>Altura (cm)</Text>
-                    <TextInput
-                        style={styles.input}
-                        placeholder="Digite a altura do bebê"
-                        value={height}
-                        onChangeText={setHeight}
-                        keyboardType="numeric"
-                    />
-                </View>
+                        <View style={styles.inputContainer}>
+                            <Text style={styles.label}>Altura (cm)</Text>
+                            <TextInput
+                                style={styles.input}
+                                placeholder="Digite a altura do bebê"
+                                value={height}
+                                onChangeText={setHeight}
+                                keyboardType="numeric"
+                            />
+                        </View>
 
-                <TouchableOpacity style={styles.button} onPress={saveData}>
-                    <Text style={styles.buttonText}>Salvar</Text>
-                </TouchableOpacity>
+                        <View style={styles.buttonContainer}>
+                            <TouchableOpacity
+                                style={styles.button}
+                                onPress={saveData}
+                            >
+                                <Text style={styles.buttonText}>
+                                    {isUpdate ? 'Atualizar' : 'Salvar'}
+                                </Text>
+                            </TouchableOpacity>
+
+                            {isUpdate && (
+                                <TouchableOpacity
+                                    style={[styles.button, styles.clearButton]}
+                                    onPress={clearForm}
+                                >
+                                    <Text style={styles.buttonText}>Novo Cadastro</Text>
+                                </TouchableOpacity>
+                            )}
+                        </View>
+                    </>
+                )}
             </ScrollView>
         </KeyboardAvoidingView>
     );
@@ -140,6 +220,17 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         color: '#333',
     },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20,
+    },
+    loadingText: {
+        marginTop: 10,
+        color: '#666',
+        fontSize: 16,
+    },
     inputContainer: {
         marginBottom: 15,
     },
@@ -156,12 +247,19 @@ const styles = StyleSheet.create({
         padding: 12,
         fontSize: 16,
     },
+    buttonContainer: {
+        marginTop: 10,
+        flexDirection: 'column',
+        gap: 10,
+    },
     button: {
         backgroundColor: '#4CAF50',
         padding: 15,
         borderRadius: 8,
         alignItems: 'center',
-        marginTop: 10,
+    },
+    clearButton: {
+        backgroundColor: '#ff9800',
     },
     buttonText: {
         color: '#fff',

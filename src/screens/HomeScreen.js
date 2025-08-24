@@ -137,6 +137,14 @@ const HomeScreen = ({ navigation }) => {
                     <Text style={styles.actionButtonText}>Histórico</Text>
                 </TouchableOpacity>
             </View>
+
+            <TouchableOpacity
+                style={[styles.actionButton, styles.fullWidthButton]}
+                onPress={() => navigation.navigate('Sobre')}
+            >
+                <Ionicons name="information-circle-outline" size={24} color="#fff" />
+                <Text style={styles.actionButtonText}>Sobre o App</Text>
+            </TouchableOpacity>
         </ScrollView>
     );
 };
